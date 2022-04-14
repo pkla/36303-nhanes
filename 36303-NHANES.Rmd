@@ -1,0 +1,20 @@
+---
+title: "36-303 NHANES"
+author: "Sage Betko"
+date: '2022-04-13'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+df <- read.csv("ProjectData.csv")
+```
+
+```{r}
+head(df)
+```
+
