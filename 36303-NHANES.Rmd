@@ -7,6 +7,8 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(survey)
 ```
 
 
@@ -14,6 +16,15 @@ knitr::opts_chunk$set(echo = TRUE)
 demographics <- haven::read_xpt("DEMO_J.XPT")
 sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
+merged$over16 <- (merged$RIDAGEYR >= 16)
+```
+
+
+```{r}
+# Replaced WTMEC4YR with WTMEC2YR
+merged.survey <- svydesign(
+  data=merged, id=~SDMVPSU, strata=~SDMVSTRA, weights=~WTMEC2YR, nest=TRUE)
+merged.survey <- subset(merged.survey, over16)
 ```
 
 
