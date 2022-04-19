@@ -79,8 +79,8 @@ for (sleep.col in sleep.cols.renamed) {
 }
 ```
 
-
 ## Set missing value codes to NA
+
 ```{r}
 # Set missing value codes to NA
 replace_with_na <- function(df, col, old.val) {
@@ -102,6 +102,7 @@ merged <- replace_with_na(merged, "frequency.daytime.fatigue", c(7, 9))
 ```
 
 ## Create age groups
+
 ```{r}
 # Create age groups
 merged$age16to30 <- (merged$RIDAGEYR >= 16) & (merged$RIDAGEYR < 30)
@@ -110,12 +111,11 @@ merged$age45to65 <- (merged$RIDAGEYR >= 45) & (merged$RIDAGEYR < 65)
 merged$age65plus <- (merged$RIDAGEYR >= 65)
 ```
 
-
 ## Convert sleep / wake time strings to numeric values
 
 ```{r}
 # Convert sleep / wake time strings to numeric values
-sleep.t0 <- 18
+sleep.t0 <- 12
 wake.t0  <- 0
 
 time.str.to.numeric.helper <- function(xi) {
@@ -160,7 +160,6 @@ merged$wake.time.weekday.offset <- offset.clock(merged$wake.time.weekday.num, wa
 merged$wake.time.weekend.offset <- offset.clock(merged$wake.time.weekend.num, wake.t0)
 ```
 
-
 ```{r}
 # Create survey design object
 # Replaced WTMEC4YR with WTMEC2YR
@@ -169,22 +168,21 @@ merged.survey <- svydesign(
 merged.survey <- subset(merged.survey, over16)
 ```
 
-
 ```{r}
 hist(merged$RIDAGEYR, breaks=50)
 
-ggplot(merged, aes(x=RIDAGEYR, y=sleep.time.weekday.offset)) + geom_point(alpha=0.01)
-ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekday.offset)) + geom_point(alpha=0.01)
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.time.weekday.offset)) + geom_point(alpha=0.01) +
+  labs(title="Sleep time (Weekdays or workdays)")
+ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekday.offset)) + geom_point(alpha=0.01) +
+  labs(title="Wake time (Weekdays or workdays)")
 
-ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekday.offset)) + geom_point(alpha=0.01)
-ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekend.offset)) + geom_point(alpha=0.01)
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.time.weekend.offset)) + geom_point(alpha=0.01) +
+  labs(title ="Sleep time (Weekend)")
+ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekend.offset)) + geom_point(alpha=0.01) +
+  labs(title="Wake time (Weekend)")
 
-ggplot(merged, aes(x=RIDAGEYR, y=sleep.hours.weekday)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekdays or Workdays)")
-ggplot(merged, aes(x=RIDAGEYR, y=sleep.hours.weekend)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekends)")
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.hours.weekday)) + geom_point(alpha=0.01) +
+  labs(y="Sleep Hours (Weekdays or Workdays)")
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.hours.weekend)) + geom_point(alpha=0.01) +
+  labs(y="Sleep Hours (Weekends)")
 ```
-
-
-
-
-
-
