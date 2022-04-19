@@ -9,6 +9,28 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(survey)
+library(tidyverse)
+```
+
+```{r}
+ggsurvey <- function(design = NULL, mapping = NULL, ...) {
+  if (!inherits(design, "survey.design")) {
+    stop("'design' should be a 'survey.design' object.")
+  }
+  if (!requireNamespace("survey", quietly = TRUE)) {
+    stop("survey package is required.")
+  }
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("ggplot2 package is required.")
+  }
+  data <- design$variables
+  data$.weights <- weights(design)
+  if(is.null(mapping)) {
+    mapping <- ggplot2::aes()
+  }
+  mapping$weight <- ggplot2::aes_string(weight = ".weights")$weight
+  ggplot2::ggplot(data, mapping, ...)
+}
 ```
 
 
@@ -17,6 +39,25 @@ demographics <- haven::read_xpt("DEMO_J.XPT")
 sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
 merged$over16 <- (merged$RIDAGEYR >= 16)
+
+
+sleep.cols.mapping <- matrix(c(
+  "SLQ300", "sleep.time.weekday", "Usual sleep time on weekdays or workdays",
+  "SLQ310", "wake.time.weekday", "Usual wake time on weekdays or workdays",
+  "SLD012", "sleep.hours.weekday", "Sleep hours - weekdays or workdays",
+  "SLQ320", "sleep.time.weekend", "Usual sleep time on weekends",
+  "SLQ330", "wake.time.weekend", "Usual wake time on weekends",
+  "SLD013", "sleep.hours.weekends", "Sleep hours - weekends",
+  "SLQ030", "frequency.snore", "How often do you snore?",
+  "SLQ040", "frequency.stop.breathing", "How often do you snort or stop breathing?",
+  "SLQ050", "told.doctor.sleep.trouble", "Ever told doctor had trouble sleeping?",
+  "SLQ120", "frequency.daytime.fatigue", "How often feel overly sleepy during day?"),
+  ncol=3, byrow=T
+)
+
+sleep.cols.original <- sleep.cols.mapping[,1]
+sleep.cols.renamed <- sleep.cols.mapping[,2]
+sleep.cols.description <- sleep.cols.mapping[,3]
 ```
 
 
@@ -27,6 +68,18 @@ merged.survey <- svydesign(
 merged.survey <- subset(merged.survey, over16)
 ```
 
+```{r}
+age.groups <- c(16, 30, 50, 70)
+```
 
+```{r}
+hist(merged$RIDAGEYR, breaks=50)
+
+ggplot(merged, aes(x=RIDAGEYR, y=SLQ320)) + geom_point(alpha=0.01)
+ggplot(merged, aes(x=RIDAGEYR, y=SLQ330)) + geom_point(alpha=0.01)
+
+ggplot(merged, aes(x=RIDAGEYR, y=SLD012)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekdays or Workdays)")
+ggplot(merged, aes(x=RIDAGEYR, y=SLD013)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekends)")
+```
 
 
