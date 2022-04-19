@@ -72,6 +72,7 @@ setnames(merged, old = sleep.cols.original, new = sleep.cols.renamed)
 merged$age16to30 <- merged$RIDAGEYR < 30
 merged$age30to50 <- merged$RIDAGEYR < 50
 merged$age50to70 <- merged$RIDAGEYR < 70
+merged$age70plus <- merged$RIDAGEYR >=70
 ```
 
 ```{r}
