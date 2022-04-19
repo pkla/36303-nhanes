@@ -1,6 +1,6 @@
 ---
 title: "36-303 NHANES"
-author: "Sage Betko"
+author: "Team 6: Divya Rao, Sage Betko, Kieran Ireland, Baekjoong Kang, Jamie Kim"
 date: '2022-04-13'
 output: pdf_document
 ---
@@ -144,14 +144,14 @@ offset.clock <- function(x, t0) {
   return(result)
 }
 
-# Convert time strings to numerics, e.g., "19:45" -> 1945
+# Convert time strings to numerics, e.g., "19:45" -> 19.75
 merged$sleep.time.weekday.num <- time.str.to.numeric(merged$sleep.time.weekday)
 merged$sleep.time.weekend.num <- time.str.to.numeric(merged$sleep.time.weekend)
 
 merged$wake.time.weekday.num <- time.str.to.numeric(merged$wake.time.weekday)
 merged$wake.time.weekend.num <- time.str.to.numeric(merged$wake.time.weekend)
 
-# Offset sleep and wake times e.g., (sleep.time = 1945, sleep.t0 = 1900) -> 45
+# Offset sleep and wake times e.g., (sleep.time = 19.75, sleep.t0 = 19) -> 0.75
 merged$sleep.time.weekday.offset <- offset.clock(merged$sleep.time.weekday.num, sleep.t0)
 merged$sleep.time.weekend.offset <- offset.clock(merged$sleep.time.weekend.num, sleep.t0)
 
@@ -189,9 +189,36 @@ ggsurvey(merged.survey, aes(x=RIDAGEYR, y=sleep.hours.weekend)) + geom_point(alp
 
 
 
+```{r}
+ggsurvey(merged.survey, aes(x=age.group, y=sleep.hours.weekend)) + geom_boxplot(alpha=0.01) +
+  labs(title="Sleep time (Weekend)")
+
+ggsurvey(merged.survey, aes(x=age.group, y=sleep.hours.weekday)) + geom_boxplot(alpha=0.01) +
+  labs(title="Sleep time (Weekdays or workdays)")
+
+```
+
+
 
 ```{r}
-svymean(~RIDAGEYR, merged.survey)
+svychisq(~sleep.hours.weekday + age.group, merged.survey)
+```
+
+
+
+```{r}
+svychisq(~sleep.hours.weekend + age.group, merged.survey)
+```
+
+```{r}
+summary(svyglm(sleep.hours.weekend ~ RIDAGEYR, merged.survey))
+```
+
+
+
+
+```{r}
+summary(svyglm(sleep.hours.weekday ~ RIDAGEYR, merged.survey))
 ```
 
 
