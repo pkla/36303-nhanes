@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(survey)
 library(tidyverse)
+library(data.table)
 ```
 
 ```{r}
@@ -40,6 +41,12 @@ sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
 merged$over16 <- (merged$RIDAGEYR >= 16)
 
+print(merged$SLQ310[1:10])
+dim(merged)
+```
+
+
+```{r}
 sleep.cols.mapping <- matrix(c(
   "SLQ300", "sleep.time.weekday", "Usual sleep time on weekdays or workdays",
   "SLQ310", "wake.time.weekday", "Usual wake time on weekdays or workdays",
@@ -58,20 +65,20 @@ sleep.cols.original <- sleep.cols.mapping[,1]
 sleep.cols.renamed <- sleep.cols.mapping[,2]
 sleep.cols.description <- sleep.cols.mapping[,3]
 
-names(merged) <- c("SEQN", sleep.cols.renamed)
-merged
+setnames(merged, old = sleep.cols.original, new = sleep.cols.renamed)
 ```
 
+```{r}
+merged$age16to30 <- merged$RIDAGEYR < 30
+merged$age30to50 <- merged$RIDAGEYR < 50
+merged$age50to70 <- merged$RIDAGEYR < 70
+```
 
 ```{r}
 # Replaced WTMEC4YR with WTMEC2YR
 merged.survey <- svydesign(
   data=merged, id=~SDMVPSU, strata=~SDMVSTRA, weights=~WTMEC2YR, nest=TRUE)
 merged.survey <- subset(merged.survey, over16)
-```
-
-```{r}
-age.groups <- c(16, 30, 50, 70)
 ```
 
 ```{r}
