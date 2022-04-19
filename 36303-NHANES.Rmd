@@ -40,7 +40,6 @@ sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
 merged$over16 <- (merged$RIDAGEYR >= 16)
 
-
 sleep.cols.mapping <- matrix(c(
   "SLQ300", "sleep.time.weekday", "Usual sleep time on weekdays or workdays",
   "SLQ310", "wake.time.weekday", "Usual wake time on weekdays or workdays",
@@ -58,6 +57,9 @@ sleep.cols.mapping <- matrix(c(
 sleep.cols.original <- sleep.cols.mapping[,1]
 sleep.cols.renamed <- sleep.cols.mapping[,2]
 sleep.cols.description <- sleep.cols.mapping[,3]
+
+names(merged) <- c("SEQN", sleep.cols.renamed)
+merged
 ```
 
 
