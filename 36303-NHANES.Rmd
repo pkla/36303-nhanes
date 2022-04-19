@@ -36,17 +36,17 @@ ggsurvey <- function(design = NULL, mapping = NULL, ...) {
 
 
 ```{r}
+# Merge data
 demographics <- haven::read_xpt("DEMO_J.XPT")
 sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
-merged$over16 <- (merged$RIDAGEYR >= 16)
 
-print(merged$SLQ310[1:10])
-dim(merged)
+merged$over16 <- (merged$RIDAGEYR >= 16)
 ```
 
 
 ```{r}
+# Rename sleep columns to be more descriptive
 sleep.cols.mapping <- matrix(c(
   "SLQ300", "sleep.time.weekday", "Usual sleep time on weekdays or workdays",
   "SLQ310", "wake.time.weekday", "Usual wake time on weekdays or workdays",
@@ -69,18 +69,64 @@ setnames(merged, old = sleep.cols.original, new = sleep.cols.renamed)
 ```
 
 ```{r}
+# Look at unique values for all the sleep variables
+for (sleep.col in sleep.cols.renamed) {
+  print(sleep.col)
+  print(sort(unique(merged[,sleep.col])))
+}
+```
+
+
+
+```{r}
+# Set missing values and codes to NA
+merged[!is.na(merged[, "sleep.time.weekday"] == "77777"), "sleep.time.weekday"] <- NA
+merged[!is.na(merged[, "sleep.time.weekday"] == "99999"), "sleep.time.weekday"] <- NA
+
+merged[!is.na(merged[, "wake.time.weekday"] == "77777"), "wake.time.weekday"] <- NA
+merged[!is.na(merged[, "wake.time.weekday"] == "99999"), "wake.time.weekday"] <- NA
+
+merged[!is.na(merged[, "sleep.time.weekend"] == "77777"), "sleep.time.weekend"] <- NA
+merged[!is.na(merged[, "sleep.time.weekend"] == "99999"), "sleep.time.weekend"] <- NA
+
+merged[!is.na(merged[, "wake.time.weekend"] == "77777"), "wake.time.weekend"] <- NA
+merged[!is.na(merged[, "wake.time.weekend"] == "99999"), "wake.time.weekend"] <- NA
+
+merged[!is.na(merged[, "frequency.snore"] == 7), "frequency.snore"] <- NA
+merged[!is.na(merged[, "frequency.snore"] == 9), "frequency.snore"] <- NA
+
+merged[!is.na(merged[, "frequency.stop.breathing"] == 7), "frequency.stop.breathing"] <- NA
+merged[!is.na(merged[, "frequency.stop.breathing"] == 9), "frequency.stop.breathing"] <- NA
+
+merged[!is.na(merged[, "told.doctor.sleep.trouble"] == 9), "told.doctor.sleep.trouble"] <- NA
+merged[!is.na(merged[, "frequency.daytime.fatigue"] == 9), "frequency.daytime.fatigue"] <- NA
+```
+
+
+```{r}
+# Create age groups
 merged$age16to30 <- merged$RIDAGEYR < 30
 merged$age30to50 <- merged$RIDAGEYR < 50
 merged$age50to70 <- merged$RIDAGEYR < 70
 merged$age70plus <- merged$RIDAGEYR >=70
 ```
 
+
 ```{r}
+# Create survey design object
 # Replaced WTMEC4YR with WTMEC2YR
 merged.survey <- svydesign(
   data=merged, id=~SDMVPSU, strata=~SDMVSTRA, weights=~WTMEC2YR, nest=TRUE)
 merged.survey <- subset(merged.survey, over16)
 ```
+
+
+```{r}
+# 
+sleep.t0 <- "18:00"
+wake.t0 <- "04:00"
+```
+
 
 ```{r}
 hist(merged$RIDAGEYR, breaks=50)
@@ -91,5 +137,9 @@ ggplot(merged, aes(x=RIDAGEYR, y=SLQ330)) + geom_point(alpha=0.01)
 ggplot(merged, aes(x=RIDAGEYR, y=SLD012)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekdays or Workdays)")
 ggplot(merged, aes(x=RIDAGEYR, y=SLD013)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekends)")
 ```
+
+
+
+
 
 
