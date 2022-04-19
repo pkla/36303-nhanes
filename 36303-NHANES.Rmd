@@ -34,16 +34,17 @@ ggsurvey <- function(design = NULL, mapping = NULL, ...) {
 }
 ```
 
+## Load and merge data
 
 ```{r}
 # Merge data
 demographics <- haven::read_xpt("DEMO_J.XPT")
 sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
-
 merged$over16 <- (merged$RIDAGEYR >= 16)
 ```
 
+## Rename sleep columns to be more descriptive
 
 ```{r}
 # Rename sleep columns to be more descriptive
@@ -53,7 +54,7 @@ sleep.cols.mapping <- matrix(c(
   "SLD012", "sleep.hours.weekday", "Sleep hours - weekdays or workdays",
   "SLQ320", "sleep.time.weekend", "Usual sleep time on weekends",
   "SLQ330", "wake.time.weekend", "Usual wake time on weekends",
-  "SLD013", "sleep.hours.weekends", "Sleep hours - weekends",
+  "SLD013", "sleep.hours.weekend", "Sleep hours - weekends",
   "SLQ030", "frequency.snore", "How often do you snore?",
   "SLQ040", "frequency.stop.breathing", "How often do you snort or stop breathing?",
   "SLQ050", "told.doctor.sleep.trouble", "Ever told doctor had trouble sleeping?",
@@ -68,6 +69,8 @@ sleep.cols.description <- sleep.cols.mapping[,3]
 setnames(merged, old = sleep.cols.original, new = sleep.cols.renamed)
 ```
 
+## Look at unique values for all the sleep variables
+
 ```{r}
 # Look at unique values for all the sleep variables
 for (sleep.col in sleep.cols.renamed) {
@@ -77,38 +80,84 @@ for (sleep.col in sleep.cols.renamed) {
 ```
 
 
-
+## Set missing value codes to NA
 ```{r}
-# Set missing values and codes to NA
-merged[!is.na(merged[, "sleep.time.weekday"] == "77777"), "sleep.time.weekday"] <- NA
-merged[!is.na(merged[, "sleep.time.weekday"] == "99999"), "sleep.time.weekday"] <- NA
+# Set missing value codes to NA
+replace_with_na <- function(df, col, old.val) {
+  for (v in old.val) {
+    to_replace <- (df[, col] == v) | is.na(df[, col])
+    df[to_replace, col] <- NA
+  }
+  return(df)
+}
 
-merged[!is.na(merged[, "wake.time.weekday"] == "77777"), "wake.time.weekday"] <- NA
-merged[!is.na(merged[, "wake.time.weekday"] == "99999"), "wake.time.weekday"] <- NA
+merged <- replace_with_na(merged, "sleep.time.weekday", c("", "77777", "99999"))
+merged <- replace_with_na(merged, "wake.time.weekday",  c("", "77777", "99999"))
+merged <- replace_with_na(merged, "sleep.time.weekend",  c("", "77777", "99999"))
+merged <- replace_with_na(merged, "wake.time.weekend",  c("", "77777", "99999"))
+merged <- replace_with_na(merged, "frequency.snore", c(7, 9))
+merged <- replace_with_na(merged, "frequency.stop.breathing", c(7, 9))
+merged <- replace_with_na(merged, "told.doctor.sleep.trouble", c(7, 9))
+merged <- replace_with_na(merged, "frequency.daytime.fatigue", c(7, 9))
+```
 
-merged[!is.na(merged[, "sleep.time.weekend"] == "77777"), "sleep.time.weekend"] <- NA
-merged[!is.na(merged[, "sleep.time.weekend"] == "99999"), "sleep.time.weekend"] <- NA
-
-merged[!is.na(merged[, "wake.time.weekend"] == "77777"), "wake.time.weekend"] <- NA
-merged[!is.na(merged[, "wake.time.weekend"] == "99999"), "wake.time.weekend"] <- NA
-
-merged[!is.na(merged[, "frequency.snore"] == 7), "frequency.snore"] <- NA
-merged[!is.na(merged[, "frequency.snore"] == 9), "frequency.snore"] <- NA
-
-merged[!is.na(merged[, "frequency.stop.breathing"] == 7), "frequency.stop.breathing"] <- NA
-merged[!is.na(merged[, "frequency.stop.breathing"] == 9), "frequency.stop.breathing"] <- NA
-
-merged[!is.na(merged[, "told.doctor.sleep.trouble"] == 9), "told.doctor.sleep.trouble"] <- NA
-merged[!is.na(merged[, "frequency.daytime.fatigue"] == 9), "frequency.daytime.fatigue"] <- NA
+## Create age groups
+```{r}
+# Create age groups
+merged$age16to30 <- (merged$RIDAGEYR >= 16) & (merged$RIDAGEYR < 30)
+merged$age30to45 <- (merged$RIDAGEYR >= 30) & (merged$RIDAGEYR < 45)
+merged$age45to65 <- (merged$RIDAGEYR >= 45) & (merged$RIDAGEYR < 65)
+merged$age65plus <- (merged$RIDAGEYR >= 65)
 ```
 
 
+## Convert sleep / wake time strings to numeric values
+
 ```{r}
-# Create age groups
-merged$age16to30 <- merged$RIDAGEYR < 30
-merged$age30to50 <- merged$RIDAGEYR < 50
-merged$age50to70 <- merged$RIDAGEYR < 70
-merged$age70plus <- merged$RIDAGEYR >=70
+# Convert sleep / wake time strings to numeric values
+sleep.t0 <- 18
+wake.t0  <- 0
+
+time.str.to.numeric.helper <- function(xi) {
+  if (any(is.na(xi)) | length(xi) != 2) {
+    return(NA)
+  } else {
+    return(as.numeric(xi[[1]]) + as.numeric(xi[[2]]) / 60)
+  }
+}
+
+# Converts to hours with decimal precision
+# E.g., "18:30" -> "18.5"
+time.str.to.numeric <- function(x) {
+  hours.minutes <- strsplit(x, ":", fixed=T)
+  result <- as.numeric(lapply(hours.minutes, time.str.to.numeric.helper))
+  result
+}
+
+# Effectively shifts the time to a new timezone where t0 is midnight
+offset.clock <- function(x, t0) {
+  result <- numeric(length(x))
+  time.before.midnight <- (24 - t0) %% 24
+  before.midnight <- !is.na(x) & ((x >= t0) & (x < 24)) 
+  after.midnight  <- !is.na(x) & !before.midnight
+  result[before.midnight] <- x[before.midnight] - t0
+  result[after.midnight] <- x[after.midnight] + time.before.midnight
+  return(result)
+}
+
+# Convert time strings to numerics, e.g., "19:45" -> 1945
+merged$sleep.time.weekday.num <- time.str.to.numeric(merged$sleep.time.weekday)
+merged$sleep.time.weekend.num <- time.str.to.numeric(merged$sleep.time.weekend)
+
+merged$wake.time.weekday.num <- time.str.to.numeric(merged$wake.time.weekday)
+merged$wake.time.weekend.num <- time.str.to.numeric(merged$wake.time.weekend)
+
+# Offset sleep and wake times e.g., (sleep.time = 1945, sleep.t0 = 1900) -> 45
+merged$sleep.time.weekday.offset <- offset.clock(merged$sleep.time.weekday.num, sleep.t0)
+merged$sleep.time.weekend.offset <- offset.clock(merged$sleep.time.weekend.num, sleep.t0)
+
+merged$wake.time.weekday.offset <- offset.clock(merged$wake.time.weekday.num, wake.t0)
+merged$wake.time.weekend.offset <- offset.clock(merged$wake.time.weekend.num, wake.t0)
 ```
 
 
@@ -122,20 +171,16 @@ merged.survey <- subset(merged.survey, over16)
 
 
 ```{r}
-# 
-sleep.t0 <- "18:00"
-wake.t0 <- "04:00"
-```
-
-
-```{r}
 hist(merged$RIDAGEYR, breaks=50)
 
-ggplot(merged, aes(x=RIDAGEYR, y=SLQ320)) + geom_point(alpha=0.01)
-ggplot(merged, aes(x=RIDAGEYR, y=SLQ330)) + geom_point(alpha=0.01)
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.time.weekday.offset)) + geom_point(alpha=0.01)
+ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekday.offset)) + geom_point(alpha=0.01)
 
-ggplot(merged, aes(x=RIDAGEYR, y=SLD012)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekdays or Workdays)")
-ggplot(merged, aes(x=RIDAGEYR, y=SLD013)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekends)")
+ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekday.offset)) + geom_point(alpha=0.01)
+ggplot(merged, aes(x=RIDAGEYR, y=wake.time.weekend.offset)) + geom_point(alpha=0.01)
+
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.hours.weekday)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekdays or Workdays)")
+ggplot(merged, aes(x=RIDAGEYR, y=sleep.hours.weekend)) + geom_point(alpha=0.01) + labs(y="Sleep Hours (Weekends)")
 ```
 
 
