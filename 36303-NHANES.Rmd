@@ -13,26 +13,6 @@ library(tidyverse)
 library(data.table)
 ```
 
-```{r}
-ggsurvey <- function(design = NULL, mapping = NULL, ...) {
-  if (!inherits(design, "survey.design")) {
-    stop("'design' should be a 'survey.design' object.")
-  }
-  if (!requireNamespace("survey", quietly = TRUE)) {
-    stop("survey package is required.")
-  }
-  if (!requireNamespace("ggplot2", quietly = TRUE)) {
-    stop("ggplot2 package is required.")
-  }
-  data <- design$variables
-  data$.weights <- weights(design)
-  if(is.null(mapping)) {
-    mapping <- ggplot2::aes()
-  }
-  mapping$weight <- ggplot2::aes_string(weight = ".weights")$weight
-  ggplot2::ggplot(data, mapping, ...)
-}
-```
 
 ## Load and merge data
 
@@ -41,6 +21,8 @@ ggsurvey <- function(design = NULL, mapping = NULL, ...) {
 demographics <- haven::read_xpt("DEMO_J.XPT")
 sleep <- haven::read_xpt("SLQ_J.XPT")
 merged <- merge(demographics, sleep, by="SEQN")
+
+# Sleep questionnaire only given to age 16 and older
 merged$over16 <- (merged$RIDAGEYR >= 16)
 ```
 
@@ -105,8 +87,8 @@ merged <- replace_with_na(merged, "frequency.daytime.fatigue", c(7, 9))
 
 ```{r}
 # Create age groups
-merged[(merged$RIDAGEYR >= 16) & (merged$RIDAGEYR < 35), "age.group"] <- "16to35"
-merged[(merged$RIDAGEYR >= 35) & (merged$RIDAGEYR < 65), "age.group"] <- "35to65"
+merged[(merged$RIDAGEYR >= 16) & (merged$RIDAGEYR < 24), "age.group"] <- "16to24"
+merged[(merged$RIDAGEYR >= 24) & (merged$RIDAGEYR < 65), "age.group"] <- "24to65"
 merged[(merged$RIDAGEYR >= 65), "age.group"] <- "65plus"
 ```
 
@@ -161,64 +143,47 @@ merged$wake.time.weekend.offset <- offset.clock(merged$wake.time.weekend.num, wa
 
 ```{r}
 # Create survey design object
-# Replaced WTMEC4YR with WTMEC2YR
-merged.survey <- svydesign(
+design <- svydesign(
   data=merged, id=~SDMVPSU, strata=~SDMVSTRA, weights=~WTMEC2YR, nest=TRUE)
-merged.survey <- subset(merged.survey, over16)
+design <- subset(design, over16)
 ```
 
 ```{r}
-hist(merged$RIDAGEYR, breaks=50)
-
-ggsurvey(merged.survey, aes(x=RIDAGEYR, y=sleep.time.weekday.offset)) + geom_point(alpha=0.01) +
-  labs(title="Sleep time (Weekdays or workdays)")
-
-ggsurvey(merged.survey, aes(x=RIDAGEYR, y=wake.time.weekday.offset)) + geom_point(alpha=0.01) +
-  labs(title="Wake time (Weekdays or workdays)")
-
-ggsurvey(merged.survey, aes(x=RIDAGEYR, y=sleep.time.weekend.offset)) + geom_point(alpha=0.01) +
-  labs(title = "Sleep time (Weekend)")
-ggsurvey(merged.survey, aes(x=RIDAGEYR, y=wake.time.weekend.offset)) + geom_point(alpha=0.01) +
-  labs(title="Wake time (Weekend)")
-
-ggsurvey(merged.survey, aes(x=RIDAGEYR, y=sleep.hours.weekday)) + geom_point(alpha=0.01) +
-  labs(title="Sleep Hours (Weekdays or Workdays)")
-ggsurvey(merged.survey, aes(x=RIDAGEYR, y=sleep.hours.weekend)) + geom_point(alpha=0.01) +
-  labs(title="Sleep Hours (Weekends)")
-```
-
-
-
-```{r}
-ggsurvey(merged.survey, aes(x=age.group, y=sleep.hours.weekend)) + geom_boxplot(alpha=0.01) +
-  labs(title="Sleep time (Weekend)")
-
-ggsurvey(merged.survey, aes(x=age.group, y=sleep.hours.weekday)) + geom_boxplot(alpha=0.01) +
-  labs(title="Sleep time (Weekdays or workdays)")
-
-```
-
-
-
-```{r}
-svychisq(~sleep.hours.weekday + age.group, merged.survey)
-```
-
-
-
-```{r}
-svychisq(~sleep.hours.weekend + age.group, merged.survey)
+svyhist(~RIDAGEYR, design)
 ```
 
 ```{r}
-summary(svyglm(sleep.hours.weekend ~ RIDAGEYR, merged.survey))
+svyboxplot(sleep.hours.weekday ~ age.group, design,
+           main="Sleep Hours Weekday")
+svyboxplot(sleep.hours.weekend ~ age.group, design,
+           main="Sleep Hours Weekend")
+
+svyboxplot(sleep.time.weekday.offset ~ age.group, design,
+           main="Sleep Time Weekday Offset")
+svyboxplot(sleep.time.weekend.offset ~ age.group, design,
+           main="Sleep Time Weekend Offset")
+
+svyboxplot(wake.time.weekday.offset ~ age.group, design,
+           main="Wake Time Weekday Offset")
+svyboxplot(wake.time.weekend.offset ~ age.group, design,
+           main="Wake Time Weekend Offset")
 ```
-
-
 
 
 ```{r}
-summary(svyglm(sleep.hours.weekday ~ RIDAGEYR, merged.survey))
+svychisq(~sleep.hours.weekday + age.group, design)
+svyboxplot(sleep.hours.weekday ~ age.group, design)
 ```
 
+```{r}
+svychisq(~sleep.hours.weekend + age.group, design)
+svyboxplot(sleep.hours.weekend ~ age.group, design)
+```
 
+```{r}
+summary(svyglm(sleep.hours.weekend ~ RIDAGEYR, design))
+```
+
+```{r}
+summary(svyglm(sleep.hours.weekday ~ RIDAGEYR, design))
+```
